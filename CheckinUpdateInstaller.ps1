@@ -112,7 +112,6 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
         
         public const int GWL_STYLE = -16;
         public const int WS_CAPTION = 0x00C00000;
-        public const int WS_THICKFRAME = 0x00040000;
     }
 "@
     
@@ -167,6 +166,7 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
                         Start-Sleep -Milliseconds 300
                         
                         # Send Ctrl+Alt+Enter to toggle Kiosk Mode
+                        # SendKeys syntax: ^ = Ctrl, % = Alt, {ENTER} = Enter key
                         [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
                         Write-Host "Kiosk Mode shortcut sent."
                     } else {
