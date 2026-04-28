@@ -9,8 +9,6 @@ $systemPath = "C:\Program Files\Check-Ins\Check-Ins.exe"
 
 $appName = "Check-Ins"
 
-Write-Host $localPath
-
 $headers = @{
     "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
@@ -84,43 +82,46 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
     Start-Sleep -Seconds 6
     
     # Function to check if the window is in fullscreen/kiosk mode and bring it to foreground
-    Add-Type @"
-    using System;
-    using System.Runtime.InteropServices;
-    public class WindowHelper {
-        [DllImport("user32.dll")]
-        public static extern IntPtr GetForegroundWindow();
-        
-        [DllImport("user32.dll")]
-        public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-        
-        [DllImport("user32.dll")]
-        public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-        
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-        
-        [DllImport("user32.dll")]
-        public static extern bool SetForegroundWindow(IntPtr hWnd);
-        
-        public struct RECT {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
+    # Only add the type if it doesn't already exist (prevents errors on re-run)
+    if (-not ([System.Management.Automation.PSTypeName]'WindowHelper').Type) {
+        Add-Type @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class WindowHelper {
+            [DllImport("user32.dll")]
+            public static extern IntPtr GetForegroundWindow();
+            
+            [DllImport("user32.dll")]
+            public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+            
+            [DllImport("user32.dll")]
+            public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+            
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+            
+            [DllImport("user32.dll")]
+            public static extern bool SetForegroundWindow(IntPtr hWnd);
+            
+            public struct RECT {
+                public int Left;
+                public int Top;
+                public int Right;
+                public int Bottom;
+            }
+            
+            public const int GWL_STYLE = -16;
+            public const int WS_CAPTION = 0x00C00000;
         }
-        
-        public const int GWL_STYLE = -16;
-        public const int WS_CAPTION = 0x00C00000;
-    }
 "@
+    }
     
     # Load System.Windows.Forms assembly once
     Add-Type -AssemblyName System.Windows.Forms
     
     try {
-        # Get the Check-Ins process
-        $checkInsProcess = Get-Process $appName -ErrorAction SilentlyContinue
+        # Get the Check-Ins process (select first if multiple exist)
+        $checkInsProcess = Get-Process $appName -ErrorAction SilentlyContinue | Select-Object -First 1
         
         if ($checkInsProcess) {
             # Give the window a moment to stabilize
