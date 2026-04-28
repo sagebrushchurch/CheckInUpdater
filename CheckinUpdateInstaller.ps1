@@ -79,6 +79,13 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
     Start-Process -FilePath $installerPath -ArgumentList "/S", "/AllUsers" -Wait
     #reopen application
     Start-Process -FilePath $systemPath
+    
+    #Wait for the app to fully load before sending kiosk mode shortcut
+    Start-Sleep -Seconds 3
+    
+    #Send Ctrl+Alt+Enter to toggle Kiosk Mode
+    Add-Type -AssemblyName System.Windows.Forms
+    [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
 }
 else {
     Write-Host "Current version $currentVersion is the most up-to-date version."
