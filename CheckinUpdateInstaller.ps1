@@ -75,8 +75,15 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
 
     #install update silently
     Start-Process -FilePath $installerPath -ArgumentList "/S", "/AllUsers" -Wait
-    #reopen application
-    Start-Process -FilePath $systemPath
+    #reopen application as a completely detached process using WMI
+    #This ensures Check-Ins survives when the PowerShell window closes
+    $wmiProcess = ([wmiclass]"Win32_Process").Create($systemPath)
+    if ($wmiProcess.ReturnValue -eq 0) {
+        Write-Host "Check-Ins launched successfully with PID: $($wmiProcess.ProcessId)"
+    } else {
+        Write-Host "Failed to launch Check-Ins via WMI (Return: $($wmiProcess.ReturnValue)). Trying fallback..."
+        Start-Process -FilePath $systemPath
+    }
     
     #Wait for the app to fully load before checking kiosk mode
     Start-Sleep -Seconds 6
