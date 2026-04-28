@@ -141,7 +141,7 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
                     
                     # WS_CAPTION (0x00C00000) is present when the window has a title bar
                     # In kiosk/fullscreen mode, this style bit should NOT be set
-                    $hasCaption = ($style -band [WindowHelper]::WS_CAPTION) -eq [WindowHelper]::WS_CAPTION
+                    $hasCaption = ($style -band [WindowHelper]::WS_CAPTION) -ne 0
                     
                     # Calculate window dimensions
                     $windowWidth = $rect.Right - $rect.Left
