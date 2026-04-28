@@ -81,7 +81,7 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
     Start-Process -FilePath $systemPath
     
     #Wait for the app to fully load before sending kiosk mode shortcut
-    Start-Sleep -Seconds 3
+    Start-Sleep -Seconds 6
     
     #Send Ctrl+Alt+Enter to toggle Kiosk Mode
     Add-Type -AssemblyName System.Windows.Forms
