@@ -190,3 +190,6 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
 else {
     Write-Host "Current version $currentVersion is the most up-to-date version."
 }
+
+# Exit the script to close the PowerShell window
+exit 0
