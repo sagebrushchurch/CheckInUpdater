@@ -113,6 +113,9 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
     }
 "@
     
+    # Load System.Windows.Forms assembly once
+    Add-Type -AssemblyName System.Windows.Forms
+    
     # Get the Check-Ins process
     $checkInsProcess = Get-Process $appName -ErrorAction SilentlyContinue
     
@@ -125,21 +128,23 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
             $rect = New-Object WindowHelper+RECT
             [WindowHelper]::GetWindowRect($mainWindowHandle, [ref]$rect) | Out-Null
             
-            # Get window style
+            # Get window style to check for borders/caption
             $style = [WindowHelper]::GetWindowLong($mainWindowHandle, [WindowHelper]::GWL_STYLE)
+            $hasBorder = ($style -band [WindowHelper]::WS_BORDER) -ne 0
+            $hasCaption = ($style -band [WindowHelper]::WS_CAPTION) -ne 0
             
             # Calculate window dimensions
             $windowWidth = $rect.Right - $rect.Left
             $windowHeight = $rect.Bottom - $rect.Top
             
             # Get screen dimensions
-            Add-Type -AssemblyName System.Windows.Forms
             $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
             
             # Check if window is fullscreen (covers entire screen and has no border/caption)
             $isFullscreen = ($windowWidth -ge $screen.Width) -and 
                            ($windowHeight -ge $screen.Height) -and
-                           ($rect.Left -le 0) -and ($rect.Top -le 0)
+                           ($rect.Left -le 0) -and ($rect.Top -le 0) -and
+                           (-not $hasBorder) -and (-not $hasCaption)
             
             if (-not $isFullscreen) {
                 Write-Host "Window is not in Kiosk Mode. Activating Kiosk Mode..."
@@ -150,7 +155,6 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
             }
         } else {
             Write-Host "Could not get window handle. Sending Kiosk Mode shortcut anyway..."
-            Add-Type -AssemblyName System.Windows.Forms
             [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
         }
     } else {
