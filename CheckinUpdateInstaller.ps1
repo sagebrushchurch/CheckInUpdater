@@ -80,12 +80,82 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
     #reopen application
     Start-Process -FilePath $systemPath
     
-    #Wait for the app to fully load before sending kiosk mode shortcut
+    #Wait for the app to fully load before checking kiosk mode
     Start-Sleep -Seconds 6
     
-    #Send Ctrl+Alt+Enter to toggle Kiosk Mode
-    Add-Type -AssemblyName System.Windows.Forms
-    [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
+    # Function to check if the window is in fullscreen/kiosk mode
+    Add-Type @"
+    using System;
+    using System.Runtime.InteropServices;
+    public class WindowHelper {
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+        
+        [DllImport("user32.dll")]
+        public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+        
+        [DllImport("user32.dll")]
+        public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+        
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+        
+        public struct RECT {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+        
+        public const int GWL_STYLE = -16;
+        public const int WS_BORDER = 0x00800000;
+        public const int WS_CAPTION = 0x00C00000;
+    }
+"@
+    
+    # Get the Check-Ins process
+    $checkInsProcess = Get-Process $appName -ErrorAction SilentlyContinue
+    
+    if ($checkInsProcess) {
+        # Find the main window of the Check-Ins process
+        $mainWindowHandle = $checkInsProcess.MainWindowHandle
+        
+        if ($mainWindowHandle -ne [IntPtr]::Zero) {
+            # Get window rectangle
+            $rect = New-Object WindowHelper+RECT
+            [WindowHelper]::GetWindowRect($mainWindowHandle, [ref]$rect) | Out-Null
+            
+            # Get window style
+            $style = [WindowHelper]::GetWindowLong($mainWindowHandle, [WindowHelper]::GWL_STYLE)
+            
+            # Calculate window dimensions
+            $windowWidth = $rect.Right - $rect.Left
+            $windowHeight = $rect.Bottom - $rect.Top
+            
+            # Get screen dimensions
+            Add-Type -AssemblyName System.Windows.Forms
+            $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            
+            # Check if window is fullscreen (covers entire screen and has no border/caption)
+            $isFullscreen = ($windowWidth -ge $screen.Width) -and 
+                           ($windowHeight -ge $screen.Height) -and
+                           ($rect.Left -le 0) -and ($rect.Top -le 0)
+            
+            if (-not $isFullscreen) {
+                Write-Host "Window is not in Kiosk Mode. Activating Kiosk Mode..."
+                #Send Ctrl+Alt+Enter to toggle Kiosk Mode
+                [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
+            } else {
+                Write-Host "Window is already in Kiosk Mode. No action needed."
+            }
+        } else {
+            Write-Host "Could not get window handle. Sending Kiosk Mode shortcut anyway..."
+            Add-Type -AssemblyName System.Windows.Forms
+            [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
+        }
+    } else {
+        Write-Host "Check-Ins process not found after launch."
+    }
 }
 else {
     Write-Host "Current version $currentVersion is the most up-to-date version."
