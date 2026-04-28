@@ -24,6 +24,8 @@ Forces a System-wide installation using the /AllUsers flag.
 
 Restarts the application from the new System path after a successful update.
 
+Automatically activates Kiosk Mode (full-screen) by sending the Ctrl+Alt+Enter keyboard shortcut after launching.
+
 2. CheckinUpdateTaskCreator.bat
 A helper utility to automate the deployment of the updater.
 
