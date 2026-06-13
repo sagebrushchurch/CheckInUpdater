@@ -64,7 +64,7 @@ You can deploy this directly from the ScreenConnect **Run Command** panel. These
 
 **Full setup — downloads files to C:\Scripts\CheckIn, creates the scheduled task, and runs the first update immediately:**
 ```
-powershell -ExecutionPolicy Bypass -Command "New-Item -ItemType Directory -Force -Path 'C:\Scripts\CheckIn' | Out-Null; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateInstaller.ps1' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' -UseBasicParsing; schtasks /create /tn 'CheckInUpdater' /tr 'powershell.exe -ExecutionPolicy Bypass -File C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' /sc daily /st 05:00 /f; schtasks /run /tn CheckInUpdater"
+powershell -ExecutionPolicy Bypass -Command "New-Item -ItemType Directory -Force -Path 'C:\Scripts\CheckIn' | Out-Null; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateInstaller.ps1' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' -UseBasicParsing; schtasks /create /tn 'CheckInUpdater' /tr 'powershell.exe -ExecutionPolicy Bypass -File C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' /sc daily /st 05:00 /ru SYSTEM /f; schtasks /run /tn CheckInUpdater"
 ```
 
 **One-time update only — runs the updater immediately without setting up the scheduled task:**
