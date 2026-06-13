@@ -64,7 +64,7 @@ You can deploy this directly from the ScreenConnect **Run Command** panel. These
 
 **Full setup — downloads files to C:\Scripts\CheckIn, creates the scheduled task, and runs the first update immediately:**
 ```
-powershell -ExecutionPolicy Bypass -Command "New-Item -ItemType Directory -Force -Path 'C:\Scripts\CheckIn' | Out-Null; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateInstaller.ps1' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' -UseBasicParsing; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateTaskCreator.bat' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateTaskCreator.bat' -UseBasicParsing; Start-Process -FilePath 'C:\Scripts\CheckIn\CheckinUpdateTaskCreator.bat' -Wait; powershell -ExecutionPolicy Bypass -File 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1'"
+powershell -ExecutionPolicy Bypass -Command "New-Item -ItemType Directory -Force -Path 'C:\Scripts\CheckIn' | Out-Null; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateInstaller.ps1' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' -UseBasicParsing; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateTaskCreator.bat' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateTaskCreator.bat' -UseBasicParsing; Start-Process -FilePath 'C:\Scripts\CheckIn\CheckinUpdateTaskCreator.bat' -Wait; schtasks /run /tn CheckInUpdater"
 ```
 
 **One-time update only — runs the updater immediately without setting up the scheduled task:**
