@@ -67,10 +67,6 @@ You can deploy this directly from the ScreenConnect **Run Command** panel. These
 powershell -ExecutionPolicy Bypass -Command "New-Item -ItemType Directory -Force -Path 'C:\Scripts\CheckIn' | Out-Null; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateInstaller.ps1' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' -UseBasicParsing; schtasks /create /tn 'CheckInUpdater' /tr 'powershell.exe -ExecutionPolicy Bypass -File C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' /sc daily /st 05:00 /ru SYSTEM /f; schtasks /run /tn CheckInUpdater"
 ```
 
-**One-time update only — runs the updater immediately without setting up the scheduled task:**
-```
-powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/master/CheckinUpdateInstaller.ps1' -OutFile '$env:TEMP\CheckinUpdateInstaller.ps1' -UseBasicParsing; powershell -ExecutionPolicy Bypass -File '$env:TEMP\CheckinUpdateInstaller.ps1'"
-```
 
 > **Note:** The full setup command will also run the update check immediately, so any machine that is behind on versions will update right away — it does not wait for the 5 AM scheduled run.
 
