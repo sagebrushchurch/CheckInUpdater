@@ -63,13 +63,13 @@ Install: It runs the new installer with the /S and /AllUsers arguments, which fo
 You can deploy this directly from the ScreenConnect **Run Command** panel (set to PowerShell). ScreenConnect runs as SYSTEM, which already has the admin rights needed.
 
 **Full setup — downloads files to C:\Scripts\CheckIn, creates the scheduled task, and runs the first update immediately:**
-```powershell
-$dir = "C:\Scripts\CheckIn"; New-Item -ItemType Directory -Force -Path $dir | Out-Null; Invoke-WebRequest -Uri "https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/main/CheckinUpdateInstaller.ps1" -OutFile "$dir\CheckinUpdateInstaller.ps1" -UseBasicParsing; Invoke-WebRequest -Uri "https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/main/CheckinUpdateTaskCreator.bat" -OutFile "$dir\CheckinUpdateTaskCreator.bat" -UseBasicParsing; Start-Process -FilePath "$dir\CheckinUpdateTaskCreator.bat" -Wait; powershell -ExecutionPolicy Bypass -File "$dir\CheckinUpdateInstaller.ps1"
+```
+powershell -ExecutionPolicy Bypass -Command "New-Item -ItemType Directory -Force -Path 'C:\Scripts\CheckIn' | Out-Null; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/main/CheckinUpdateInstaller.ps1' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1' -UseBasicParsing; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/main/CheckinUpdateTaskCreator.bat' -OutFile 'C:\Scripts\CheckIn\CheckinUpdateTaskCreator.bat' -UseBasicParsing; Start-Process -FilePath 'C:\Scripts\CheckIn\CheckinUpdateTaskCreator.bat' -Wait; powershell -ExecutionPolicy Bypass -File 'C:\Scripts\CheckIn\CheckinUpdateInstaller.ps1'"
 ```
 
 **One-time update only — runs the updater immediately without setting up the scheduled task:**
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/main/CheckinUpdateInstaller.ps1" -OutFile "$env:TEMP\CheckinUpdateInstaller.ps1" -UseBasicParsing; powershell -ExecutionPolicy Bypass -File "$env:TEMP\CheckinUpdateInstaller.ps1"
+```
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/sagebrushchurch/CheckInUpdater/main/CheckinUpdateInstaller.ps1' -OutFile '$env:TEMP\CheckinUpdateInstaller.ps1' -UseBasicParsing; powershell -ExecutionPolicy Bypass -File '$env:TEMP\CheckinUpdateInstaller.ps1'"
 ```
 
 > **Note:** The full setup command will also run the update check immediately, so any machine that is behind on versions will update right away — it does not wait for the 5 AM scheduled run.
