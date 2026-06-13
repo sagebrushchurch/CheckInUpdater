@@ -75,23 +75,39 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
 
     #install update silently
     Start-Process -FilePath $installerPath -ArgumentList "/S", "/AllUsers" -Wait
-    #reopen application as a completely detached process using WMI
-    #This ensures Check-Ins survives when the PowerShell window closes
-    $wmiProcess = ([wmiclass]"Win32_Process").Create($systemPath)
-    if ($wmiProcess.ReturnValue -eq 0) {
-        Write-Host "Check-Ins launched successfully with PID: $($wmiProcess.ProcessId)"
+    # Detect whether we are running as SYSTEM (ScreenConnect / scheduled task) or as an interactive user
+    $isSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem
+    $activeUser = (Get-WmiObject Win32_ComputerSystem).Username
+
+    if ($isSystem -and $activeUser) {
+        # Running as SYSTEM - launch Check-Ins in the active user's interactive session via a temporary scheduled task
+        Write-Host "Running as SYSTEM. Launching Check-Ins in session for user: $activeUser"
+        $launchAction    = New-ScheduledTaskAction -Execute $systemPath
+        $launchTrigger   = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5)
+        $launchPrincipal = New-ScheduledTaskPrincipal -UserId $activeUser -LogonType Interactive
+        Register-ScheduledTask -TaskName "LaunchCheckInsTemp" -Action $launchAction -Trigger $launchTrigger -Principal $launchPrincipal -Force | Out-Null
+        Write-Host "Check-Ins will launch on the user's desktop shortly."
+        Start-Sleep -Seconds 15
+        Unregister-ScheduledTask -TaskName "LaunchCheckInsTemp" -Confirm:$false
+    } elseif ($isSystem) {
+        Write-Host "Running as SYSTEM but no active user is logged in. Skipping relaunch."
     } else {
-        Write-Host "Failed to launch Check-Ins via WMI (Return: $($wmiProcess.ReturnValue)). Trying fallback..."
-        Start-Process -FilePath $systemPath
-    }
-    
-    #Wait for the app to fully load before checking kiosk mode
-    Start-Sleep -Seconds 6
-    
-    # Function to check if the window is in fullscreen/kiosk mode and bring it to foreground
-    # Only add the type if it doesn't already exist (prevents errors on re-run)
-    if (-not ([System.Management.Automation.PSTypeName]'WindowHelper').Type) {
-        Add-Type @"
+        # Running in user context - launch directly and ensure kiosk mode is active
+        $wmiProcess = ([wmiclass]"Win32_Process").Create($systemPath)
+        if ($wmiProcess.ReturnValue -eq 0) {
+            Write-Host "Check-Ins launched successfully with PID: $($wmiProcess.ProcessId)"
+        } else {
+            Write-Host "Failed to launch Check-Ins via WMI (Return: $($wmiProcess.ReturnValue)). Trying fallback..."
+            Start-Process -FilePath $systemPath
+        }
+
+        #Wait for the app to fully load before checking kiosk mode
+        Start-Sleep -Seconds 6
+
+        # Function to check if the window is in fullscreen/kiosk mode and bring it to foreground
+        # Only add the type if it doesn't already exist (prevents errors on re-run)
+        if (-not ([System.Management.Automation.PSTypeName]'WindowHelper').Type) {
+            Add-Type @"
         using System;
         using System.Runtime.InteropServices;
         public class WindowHelper {
@@ -121,77 +137,77 @@ if($null -eq $remoteVersion -or $remoteVersion -gt $currentVersion) {
             public const int WS_CAPTION = 0x00C00000;
         }
 "@
-    }
-    
-    # Load System.Windows.Forms assembly once
-    Add-Type -AssemblyName System.Windows.Forms
-    
-    try {
-        # Get the Check-Ins process (select first if multiple exist)
-        $checkInsProcess = Get-Process $appName -ErrorAction SilentlyContinue | Select-Object -First 1
-        
-        if ($checkInsProcess) {
-            # Give the window a moment to stabilize
-            Start-Sleep -Milliseconds 500
-            
-            # Find the main window of the Check-Ins process
-            $mainWindowHandle = $checkInsProcess.MainWindowHandle
-            
-            if ($mainWindowHandle -ne [IntPtr]::Zero) {
-                # Get window rectangle
-                $rect = New-Object WindowHelper+RECT
-                $rectResult = [WindowHelper]::GetWindowRect($mainWindowHandle, [ref]$rect)
-                
-                if ($rectResult) {
-                    # Get window style to check for title bar (WS_CAPTION includes WS_BORDER)
-                    $style = [WindowHelper]::GetWindowLong($mainWindowHandle, [WindowHelper]::GWL_STYLE)
-                    
-                    # WS_CAPTION (0x00C00000) is present when the window has a title bar
-                    # In kiosk/fullscreen mode, this style bit should NOT be set
-                    $hasCaption = ($style -band [WindowHelper]::WS_CAPTION) -ne 0
-                    
-                    # Calculate window dimensions
-                    $windowWidth = $rect.Right - $rect.Left
-                    $windowHeight = $rect.Bottom - $rect.Top
-                    
-                    # Get screen dimensions
-                    $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-                    
-                    Write-Host "Window dimensions: $windowWidth x $windowHeight"
-                    Write-Host "Screen dimensions: $($screen.Width) x $($screen.Height)"
-                    Write-Host "Window has caption/title bar: $hasCaption"
-                    Write-Host "Window style: 0x$($style.ToString('X8'))"
-                    
-                    # A window is in Kiosk Mode if it has no caption/title bar
-                    # The size check is less reliable as windows can be maximized without being in kiosk mode
-                    $isKioskMode = -not $hasCaption
-                    
-                    if (-not $isKioskMode) {
-                        Write-Host "Window is not in Kiosk Mode. Activating Kiosk Mode..."
-                        
-                        # Bring the window to foreground before sending keys
-                        [WindowHelper]::SetForegroundWindow($mainWindowHandle) | Out-Null
-                        Start-Sleep -Milliseconds 300
-                        
-                        # Send Ctrl+Alt+Enter to toggle Kiosk Mode
-                        # SendKeys syntax: ^ = Ctrl, % = Alt, {ENTER} = Enter key
-                        [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
-                        Write-Host "Kiosk Mode shortcut sent."
+        }
+
+        # Load System.Windows.Forms assembly once
+        Add-Type -AssemblyName System.Windows.Forms
+
+        try {
+            # Get the Check-Ins process (select first if multiple exist)
+            $checkInsProcess = Get-Process $appName -ErrorAction SilentlyContinue | Select-Object -First 1
+
+            if ($checkInsProcess) {
+                # Give the window a moment to stabilize
+                Start-Sleep -Milliseconds 500
+
+                # Find the main window of the Check-Ins process
+                $mainWindowHandle = $checkInsProcess.MainWindowHandle
+
+                if ($mainWindowHandle -ne [IntPtr]::Zero) {
+                    # Get window rectangle
+                    $rect = New-Object WindowHelper+RECT
+                    $rectResult = [WindowHelper]::GetWindowRect($mainWindowHandle, [ref]$rect)
+
+                    if ($rectResult) {
+                        # Get window style to check for title bar (WS_CAPTION includes WS_BORDER)
+                        $style = [WindowHelper]::GetWindowLong($mainWindowHandle, [WindowHelper]::GWL_STYLE)
+
+                        # WS_CAPTION (0x00C00000) is present when the window has a title bar
+                        # In kiosk/fullscreen mode, this style bit should NOT be set
+                        $hasCaption = ($style -band [WindowHelper]::WS_CAPTION) -ne 0
+
+                        # Calculate window dimensions
+                        $windowWidth = $rect.Right - $rect.Left
+                        $windowHeight = $rect.Bottom - $rect.Top
+
+                        # Get screen dimensions
+                        $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+
+                        Write-Host "Window dimensions: $windowWidth x $windowHeight"
+                        Write-Host "Screen dimensions: $($screen.Width) x $($screen.Height)"
+                        Write-Host "Window has caption/title bar: $hasCaption"
+                        Write-Host "Window style: 0x$($style.ToString('X8'))"
+
+                        # A window is in Kiosk Mode if it has no caption/title bar
+                        $isKioskMode = -not $hasCaption
+
+                        if (-not $isKioskMode) {
+                            Write-Host "Window is not in Kiosk Mode. Activating Kiosk Mode..."
+
+                            # Bring the window to foreground before sending keys
+                            [WindowHelper]::SetForegroundWindow($mainWindowHandle) | Out-Null
+                            Start-Sleep -Milliseconds 300
+
+                            # Send Ctrl+Alt+Enter to toggle Kiosk Mode
+                            # SendKeys syntax: ^ = Ctrl, % = Alt, {ENTER} = Enter key
+                            [System.Windows.Forms.SendKeys]::SendWait("^%{ENTER}")
+                            Write-Host "Kiosk Mode shortcut sent."
+                        } else {
+                            Write-Host "Window is already in Kiosk Mode. No action needed."
+                        }
                     } else {
-                        Write-Host "Window is already in Kiosk Mode. No action needed."
+                        Write-Host "Could not get window rectangle. Skipping kiosk mode check."
                     }
                 } else {
-                    Write-Host "Could not get window rectangle. Skipping kiosk mode check."
+                    Write-Host "Could not get window handle. The window may not be fully initialized yet."
                 }
             } else {
-                Write-Host "Could not get window handle. The window may not be fully initialized yet."
+                Write-Host "Check-Ins process not found after launch."
             }
-        } else {
-            Write-Host "Check-Ins process not found after launch."
+        } catch {
+            Write-Host "Error checking kiosk mode: $($_.Exception.Message)"
+            Write-Host "Skipping kiosk mode activation to avoid issues."
         }
-    } catch {
-        Write-Host "Error checking kiosk mode: $($_.Exception.Message)"
-        Write-Host "Skipping kiosk mode activation to avoid issues."
     }
 }
 else {
