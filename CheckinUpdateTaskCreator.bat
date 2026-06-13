@@ -16,5 +16,3 @@ if %errorlevel% equ 0 (
 ) else (
     echo Error creating task. Please run this batch file as Administrator.
 )
-
-pause
